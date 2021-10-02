@@ -1,0 +1,13 @@
+{
+    "client": "sqlite3",
+    "useNullAsDefault": true,
+    "connection": {
+        "filename": "./db/db.sqlite3"
+    },
+    "migrations": {
+        "directory": "./db/migrations"
+    },
+    "seeds": {
+        "directory": "./db/seeds"
+    }
+}

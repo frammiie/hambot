@@ -24,11 +24,11 @@ export const QuotesHandler: CommandHandler = {
                     by: tags.username,
                 }).returning('number');
 
-                client.respond(channel, tags, `Added quote #${addedNumber} successfully ✏️📜`);
+                client.respond(channel, tags, `Added quote #${addedNumber} successfully 📝`);
                 break;
             case 'del':
                 if (!client.authorizedUser(channel, tags)) return;
-                
+
                 const delNum = parseNumber(client, channel, tags, args[1]);
                 if (!delNum) return;
                 await db<Quote>('quotes').del().where('number', delNum);

@@ -14,13 +14,13 @@ const client = new Client({
     channels: process.env.CHANNELS.split(' '),
 });
 
-console.info('frammiebot is starting...');
+console.info('hambot is starting...');
 
 client.connect()
     .catch(console.error)
-    .then(() => console.info('frammiebot connected successfully'));
+    .then(() => console.info('hambot connected successfully'));
 
-client.on('join', (channel) => client.say(channel, 'frammiebot is here!'));
+client.on('join', (channel) => client.say(channel, 'hambot is here!'));
 
 const argsRegex = new RegExp('"[^"]*"|[^ ]+', 'g');
 client.on('message', async (channel, tags, message, self) => {

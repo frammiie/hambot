@@ -11,7 +11,7 @@ import (
 var QuoteModule = CommandModule{
 	Commands: []Command{
 		{
-			Regex: *regexp.MustCompile("betas?"),
+			Regex: *regexp.MustCompile("quotes?"),
 			Arguments: []string{
 				"number",
 			},

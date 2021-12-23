@@ -1,0 +1,4 @@
+github.com/frammiie/go-twitch-irc/v2 v2.8.2-reply h1:ofi4Em903V4ptYEI/NdtI7u8AIhKRXoGI4nGH044Af8=
+github.com/frammiie/go-twitch-irc/v2 v2.8.2-reply/go.mod h1:120d2SdlRYg8tRnZwsyNPeS+mWPn+YmNEzB7Bv/CDGE=
+github.com/mattn/go-sqlite3 v1.14.9 h1:10HX2Td0ocZpYEjhilsuo6WWtUqttj2Kb0KtD86/KYA=
+github.com/mattn/go-sqlite3 v1.14.9/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=

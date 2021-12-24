@@ -32,11 +32,15 @@ var RepeatModule = CommandModule{
 
 				quote := db.Quote{}
 
-				db.Database.QueryRow(`
+				err := db.Database.QueryRow(`
 					SELECT content FROM message
 					WHERE LENGTH(content) >= $1
 					ORDER BY RANDOM()
 				`, min).Scan(&quote.Content)
+
+				if err != nil {
+					return
+				}
 
 				module.Client.Say(message.Channel, quote.Content)
 			},

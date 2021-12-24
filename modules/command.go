@@ -67,7 +67,7 @@ var partsRegex = regexp.MustCompile("\"([^\"]+)\"|\\S+")
 
 func collectParts(message *twitch.PrivateMessage) []string {
 	subs := partsRegex.FindAllStringSubmatch(message.Message, -1)
-	if subs == nil || len(subs) == 1 {
+	if subs == nil {
 		return nil
 	}
 	parts := make([]string, 0, len(subs))

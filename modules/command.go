@@ -32,17 +32,16 @@ const (
 	BroadcasterLevel
 )
 
-var argRegex = regexp.MustCompile("([^\\s\"]+)")
-
 func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
 	if !strings.HasPrefix(message.Message, os.Getenv("PREFIX")) {
 		return
 	}
-	parts := argRegex.FindAllString(message.Message, -1)
-	if len(parts[0]) == 1 {
+
+	// Collect parts of message
+	parts := collectParts(message)
+	if parts == nil {
 		return
 	}
-	parts[0] = parts[0][len(os.Getenv("PREFIX")):]
 
 	command, depth := matchCommand(parts, 0, &h.Commands)
 	if command == nil || command.Handle == nil {
@@ -62,6 +61,25 @@ func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
 	}
 
 	command.Handle(h, message, parts[1:]...)
+}
+
+var partsRegex = regexp.MustCompile("\"([^\"]+)\"|\\S+")
+
+func collectParts(message *twitch.PrivateMessage) []string {
+	subs := partsRegex.FindAllStringSubmatch(message.Message, -1)
+	if subs == nil || len(subs) == 1 {
+		return nil
+	}
+	parts := make([]string, 0, len(subs))
+	for _, s := range subs {
+		v := s[1]
+		if s[1] == "" {
+			v = s[0]
+		}
+		parts = append(parts, v)
+	}
+	parts[0] = parts[0][len(os.Getenv("PREFIX")):]
+	return parts
 }
 
 func matchCommand(query []string, depth int, commands *[]Command) (*Command, int) {

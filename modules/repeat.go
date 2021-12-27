@@ -41,21 +41,27 @@ var RepeatModule = CommandModule{
 					WHERE LENGTH(content) >= ?
 				`)
 
-				if len(excludedUsernames) > 1 {
-					query.WriteString("AND LOWER(username) NOT IN (''")
-					for _, username := range excludedUsernames {
-						query.WriteString(", LOWER('" + username + "')")
+				if excludedUsernames[0] != "" {
+					query.WriteString("AND LOWER(username) NOT IN (")
+					for i, username := range excludedUsernames {
+						if i != 0 {
+							query.WriteString(", ")
+						}
+						query.WriteString("'" + username + "'")
 					}
 					query.WriteString(")")
 				}
 
-				if len(excludedContent) > 1 {
+				if excludedContent[0] != "" {
 					for _, excluded := range excludedContent {
 						query.WriteString(
-							" AND LOWER(content) NOT LIKE LOWER('%" +
-								excluded + "%')")
+							" AND LOWER(content) NOT LIKE " +
+								"('%" + excluded + "%')",
+						)
 					}
 				}
+
+				query.WriteString(" ORDER BY RANDOM() LIMIT 1")
 
 				var message string
 				err := db.Database.QueryRow(query.String(), min).Scan(&message)

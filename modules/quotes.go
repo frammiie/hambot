@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"github.com/frammiie/hambot/db"
-	"github.com/gempir/go-twitch-irc/v2"
 )
 
 var QuoteModule = CommandModule{
@@ -50,22 +49,25 @@ var QuoteModule = CommandModule{
 	},
 }
 
-func findQuote(module *CommandModule, message *twitch.PrivateMessage, statement string, args ...interface{}) {
+func findQuote(params *HandlerParams, statement string, args ...interface{}) {
 	quote := db.Quote{}
 	err := db.Database.QueryRow(
 		statement, args...,
-	).Scan(&quote.Number, &quote.Content, &quote.Author, &quote.Submitter, &quote.Added)
+	).Scan(
+		&quote.Number, &quote.Content, &quote.Author,
+		&quote.Submitter, &quote.Added,
+	)
 
 	if err != nil {
-		module.Respond(
-			message,
+		params.module.Respond(
+			params.message,
 			fmt.Sprintf("Quote not found! 👀"),
 		)
 		return
 	}
 
-	module.Respond(
-		message,
+	params.module.Respond(
+		params.message,
 		fmt.Sprintf(
 			"✒️ #%d - %s - %s (👤 @%s ⏰ %s)",
 			quote.Number, quote.Content, quote.Author,
@@ -74,24 +76,26 @@ func findQuote(module *CommandModule, message *twitch.PrivateMessage, statement 
 	)
 }
 
-func quote(module *CommandModule, message *twitch.PrivateMessage, args ...string) {
+func quote(params *HandlerParams, args ...string) {
 	findQuote(
-		module,
-		message,
-		"SELECT number, content, author, submitter, added FROM quote WHERE number = $1",
+		params,
+		`SELECT
+			number, content, author, submitter, added
+		FROM quote
+		WHERE number = $1`,
 		args[0],
 	)
 }
 
-func addQuote(module *CommandModule, message *twitch.PrivateMessage, args ...string) {
+func addQuote(params *HandlerParams, args ...string) {
 	var next int
-	db.Database.QueryRow(`
+	err := db.Database.QueryRow(`
 		SELECT  number + 1 as number
 		FROM    quote q1
 		WHERE   NOT EXISTS
 				(
 				SELECT  NULL
-				FROM    quote q2 
+				FROM    quote q2
 				WHERE   q2.number = q1.number + 1
 				)
 		ORDER BY
@@ -99,23 +103,39 @@ func addQuote(module *CommandModule, message *twitch.PrivateMessage, args ...str
 		LIMIT 1;
 	`).Scan(&next)
 
-	db.Database.Exec("INSERT INTO quote (number, content, author, submitter, added) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)",
-		next, args[1], args[2], message.User.DisplayName)
+	if err != nil {
+		next = 1
+	}
 
-	module.Respond(message, fmt.Sprintf("Added quote %d successfully 📝", next))
+	db.Database.Exec(`
+		INSERT INTO quote (
+			number, content, author, submitter, added
+		) VALUES (
+			$1, $2, $3, $4, CURRENT_TIMESTAMP
+		)`,
+		next, args[1], args[2], params.message.User.DisplayName)
+
+	params.module.Respond(
+		params.message, fmt.Sprintf("Added quote %d successfully 📝", next),
+	)
 }
 
-func deleteQuote(module *CommandModule, message *twitch.PrivateMessage, args ...string) {
+func deleteQuote(params *HandlerParams, args ...string) {
 	db.Database.Exec("DELETE FROM quote WHERE number = $1", args[1])
 
-	module.Respond(message, fmt.Sprintf("Deleted quote #%s successfully 💀", args[1]))
+	params.module.Respond(
+		params.message,
+		fmt.Sprintf("Deleted quote #%s successfully 💀", args[1]),
+	)
 }
 
-func searchQuote(module *CommandModule, message *twitch.PrivateMessage, args ...string) {
+func searchQuote(params *HandlerParams, args ...string) {
 	findQuote(
-		module,
-		message,
-		"SELECT number, content, author, submitter, added FROM quote WHERE content LIKE $1",
+		params,
+		`SELECT
+			number, content, author, submitter, added
+		FROM quote
+		WHERE content LIKE $1`,
 		"%"+args[1]+"%",
 	)
 }

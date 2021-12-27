@@ -13,11 +13,15 @@ type CommandModule struct {
 	Commands []Command
 }
 
+type HandlerParams struct {
+	module  *CommandModule
+	message *twitch.PrivateMessage
+}
+
 type Command struct {
 	Regex  regexp.Regexp
 	Handle func(
-		module *CommandModule,
-		message *twitch.PrivateMessage,
+		params *HandlerParams,
 		args ...string,
 	)
 	Arguments []string
@@ -60,7 +64,7 @@ func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
 		return
 	}
 
-	command.Handle(h, message, parts[1:]...)
+	command.Handle(&HandlerParams{module: h, message: message}, parts[1:]...)
 }
 
 var partsRegex = regexp.MustCompile("\"([^\"]+)\"|\\S+")

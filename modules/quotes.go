@@ -10,7 +10,7 @@ import (
 var QuoteModule = CommandModule{
 	Commands: []Command{
 		{
-			Regex: *regexp.MustCompile("quotes?"),
+			Regex: *regexp.MustCompile("quotes?$"),
 			Arguments: []string{
 				"number",
 			},
@@ -18,7 +18,7 @@ var QuoteModule = CommandModule{
 			Handle:   quote,
 			Commands: []Command{
 				{
-					Regex: *regexp.MustCompile("add"),
+					Regex: *regexp.MustCompile("add$"),
 					Arguments: []string{
 						"\"content\"",
 						"author",
@@ -28,7 +28,7 @@ var QuoteModule = CommandModule{
 					Handle:   addQuote,
 				},
 				{
-					Regex: *regexp.MustCompile("del(ete)?"),
+					Regex: *regexp.MustCompile("del(ete)?$"),
 					Arguments: []string{
 						"number",
 					},
@@ -37,7 +37,7 @@ var QuoteModule = CommandModule{
 					Handle:   deleteQuote,
 				},
 				{
-					Regex: *regexp.MustCompile("search"),
+					Regex: *regexp.MustCompile("search$"),
 					Arguments: []string{
 						"query",
 					},

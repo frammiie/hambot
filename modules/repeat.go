@@ -20,7 +20,7 @@ var excludedUsernames = strings.Split(
 var RepeatModule = CommandModule{
 	Commands: []Command{
 		{
-			Regex: *regexp.MustCompile("scs"),
+			Regex: *regexp.MustCompile("scs$"),
 			Arguments: []string{
 				"min length",
 			},

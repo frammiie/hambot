@@ -12,7 +12,7 @@ var maxHeight, _ = strconv.Atoi(os.Getenv("MAX_PYRAMID_HEIGHT"))
 var PyramidModule = CommandModule{
 	Commands: []Command{
 		{
-			Regex: *regexp.MustCompile("pyramid"),
+			Regex: *regexp.MustCompile("pyramid$"),
 			Arguments: []string{
 				"content",
 				"height",

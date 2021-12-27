@@ -4,12 +4,18 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/frammiie/hambot/db"
-	"github.com/gempir/go-twitch-irc/v2"
 )
 
 var minLength, _ = strconv.Atoi(os.Getenv("REPEAT_MIN_LENGTH"))
+var excludedContent = strings.Split(
+	strings.ToLower(os.Getenv("REPEAT_EXCLUDED_CONTENT")), ";",
+)
+var excludedUsernames = strings.Split(
+	strings.ToLower(os.Getenv("REPEAT_EXCLUDED_USERNAMES")), ";",
+)
 
 var RepeatModule = CommandModule{
 	Commands: []Command{
@@ -19,8 +25,7 @@ var RepeatModule = CommandModule{
 				"min length",
 			},
 			Handle: func(
-				module *CommandModule,
-				message *twitch.PrivateMessage,
+				params *HandlerParams,
 				args ...string) {
 				min := minLength
 				if len(args) > 1 {
@@ -30,19 +35,36 @@ var RepeatModule = CommandModule{
 					}
 				}
 
-				quote := db.Quote{}
-
-				err := db.Database.QueryRow(`
+				query := strings.Builder{}
+				query.WriteString(`
 					SELECT content FROM message
-					WHERE LENGTH(content) >= $1
-					ORDER BY RANDOM()
-				`, min).Scan(&quote.Content)
+					WHERE LENGTH(content) >= ?
+				`)
+
+				if len(excludedUsernames) > 1 {
+					query.WriteString("AND LOWER(username) NOT IN (''")
+					for _, username := range excludedUsernames {
+						query.WriteString(", LOWER('" + username + "')")
+					}
+					query.WriteString(")")
+				}
+
+				if len(excludedContent) > 1 {
+					for _, excluded := range excludedContent {
+						query.WriteString(
+							" AND LOWER(content) NOT LIKE LOWER('%" +
+								excluded + "%')")
+					}
+				}
+
+				var message string
+				err := db.Database.QueryRow(query.String(), min).Scan(&message)
 
 				if err != nil {
 					return
 				}
 
-				module.Client.Say(message.Channel, quote.Content)
+				params.module.Client.Say(params.message.Channel, message)
 			},
 		},
 	},

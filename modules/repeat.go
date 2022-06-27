@@ -38,7 +38,9 @@ var RepeatModule = CommandModule{
 				query := strings.Builder{}
 				query.WriteString(`
 					SELECT content FROM message
-					WHERE LENGTH(content) >= ?
+					WHERE
+						channel = $1 AND
+						LENGTH(content) >= $2
 				`)
 
 				if excludedUsernames[0] != "" {
@@ -64,7 +66,9 @@ var RepeatModule = CommandModule{
 				query.WriteString(" ORDER BY RANDOM() LIMIT 1")
 
 				var message string
-				err := db.Database.QueryRow(query.String(), min).Scan(&message)
+				err := db.Database.QueryRow(
+					query.String(), params.message.Channel, min,
+				).Scan(&message)
 
 				if err != nil {
 					return

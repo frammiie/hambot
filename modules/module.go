@@ -27,4 +27,5 @@ var Instances = []IModule{
 	&EchoModule{},
 	&RepeatModule,
 	&StatsModule,
+	&PyramidModule,
 }

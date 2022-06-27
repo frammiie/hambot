@@ -71,7 +71,7 @@ func findQuote(params *HandlerParams, statement string, args ...interface{}) {
 		fmt.Sprintf(
 			"✒️ #%d - %s - %s (👤 @%s ⏰ %s)",
 			quote.Number, quote.Content, quote.Author,
-			quote.Submitter, quote.Added.Format("2006-02-01"),
+			quote.Submitter, quote.Added.Format("2006-01-02"),
 		),
 	)
 }

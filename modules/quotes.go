@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/frammiie/hambot/db"
 )
@@ -10,7 +11,7 @@ import (
 var QuoteModule = CommandModule{
 	Commands: []Command{
 		{
-			Regex: *regexp.MustCompile("quotes?$"),
+			Regex: *regexp.MustCompile("q(uote)?(s)?$"),
 			Arguments: []string{
 				"number",
 			},
@@ -49,6 +50,25 @@ var QuoteModule = CommandModule{
 	},
 }
 
+func quote(params *HandlerParams, args ...string) {
+	_, err := strconv.Atoi(args[0])
+	if err != nil {
+		searchQuote(params, args...)
+		return
+	}
+
+	findQuote(
+		params,
+		`SELECT
+			number, content, author, submitter, added
+		FROM quote
+		WHERE
+			channel = $1 AND
+			number = $2`,
+		params.message.Channel, args[0],
+	)
+}
+
 func findQuote(params *HandlerParams, statement string, args ...interface{}) {
 	quote := db.Quote{}
 	err := db.Database.QueryRow(
@@ -76,44 +96,47 @@ func findQuote(params *HandlerParams, statement string, args ...interface{}) {
 	)
 }
 
-func quote(params *HandlerParams, args ...string) {
-	findQuote(
-		params,
-		`SELECT
-			number, content, author, submitter, added
-		FROM quote
-		WHERE number = $1`,
-		args[0],
-	)
-}
-
 func addQuote(params *HandlerParams, args ...string) {
 	var next int
 	err := db.Database.QueryRow(`
-		SELECT  number + 1 as number
-		FROM    quote q1
-		WHERE   NOT EXISTS
+			SELECT  number + 1 as number
+			FROM    quote q1
+			WHERE
+				channel = $1 AND
+				NOT EXISTS
 				(
-				SELECT  NULL
-				FROM    quote q2
-				WHERE   q2.number = q1.number + 1
+					SELECT  NULL
+					FROM    quote q2
+					WHERE
+						channel = $1 AND
+						q2.number = q1.number + 1
 				)
-		ORDER BY
-				number
-		LIMIT 1;
-	`).Scan(&next)
+			ORDER BY
+					number
+			LIMIT 1;
+		`,
+		params.message.Channel).
+		Scan(&next)
 
 	if err != nil {
 		next = 1
 	}
 
-	db.Database.Exec(`
+	_, err = db.Database.Exec(`
 		INSERT INTO quote (
-			number, content, author, submitter, added
+			number, content, author, submitter, channel, added
 		) VALUES (
-			$1, $2, $3, $4, CURRENT_TIMESTAMP
+			$1, $2, $3, $4, $5, CURRENT_TIMESTAMP
 		)`,
-		next, args[1], args[2], params.message.User.DisplayName)
+		next, args[0], args[1], params.message.User.DisplayName, params.message.Channel)
+
+	if err != nil {
+		params.module.Respond(
+			params.message,
+			fmt.Sprintf("Failed to add quote :("),
+		)
+		return
+	}
 
 	params.module.Respond(
 		params.message, fmt.Sprintf("Added quote %d successfully 📝", next),
@@ -121,11 +144,18 @@ func addQuote(params *HandlerParams, args ...string) {
 }
 
 func deleteQuote(params *HandlerParams, args ...string) {
-	db.Database.Exec("DELETE FROM quote WHERE number = $1", args[1])
+	db.Database.Exec(`
+		DELETE FROM quote
+		WHERE
+			channel = $1 AND
+			number = $2`,
+		params.message.Channel,
+		args[0],
+	)
 
 	params.module.Respond(
 		params.message,
-		fmt.Sprintf("Deleted quote #%s successfully 💀", args[1]),
+		fmt.Sprintf("Deleted quote #%s successfully 💀", args[0]),
 	)
 }
 
@@ -135,7 +165,10 @@ func searchQuote(params *HandlerParams, args ...string) {
 		`SELECT
 			number, content, author, submitter, added
 		FROM quote
-		WHERE content LIKE $1`,
-		"%"+args[1]+"%",
+		WHERE
+			channel = $1 AND
+			content LIKE $2`,
+		params.message.Channel,
+		"%"+args[0]+"%",
 	)
 }

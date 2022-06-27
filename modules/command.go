@@ -64,7 +64,10 @@ func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
 		return
 	}
 
-	command.Handle(&HandlerParams{module: h, message: message}, parts[1:]...)
+	command.Handle(
+		&HandlerParams{module: h, message: message},
+		parts[depth+1:]...,
+	)
 }
 
 var partsRegex = regexp.MustCompile("\"([^\"]+)\"|\\S+")

@@ -2,7 +2,8 @@ package modules
 
 import (
 	"github.com/frammiie/hambot/db"
-	"github.com/gempir/go-twitch-irc/v2"
+	"github.com/frammiie/hambot/db/model"
+	"github.com/gempir/go-twitch-irc/v3"
 )
 
 type LogModule struct {
@@ -10,9 +11,11 @@ type LogModule struct {
 }
 
 func (m *LogModule) OnMessage(message *twitch.PrivateMessage) {
-	db.Database.Exec(
-		"INSERT INTO message VALUES ($1, $2, $3, $4, $5)",
-		message.ID, message.Message, message.User.DisplayName,
-		message.Channel, message.Time,
-	)
+	db.Instance.Create(&model.Message{
+		Id:       message.ID,
+		Content:  message.Message,
+		Username: message.User.DisplayName,
+		Channel:  message.Channel,
+		Created:  message.Time,
+	})
 }

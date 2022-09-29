@@ -3,9 +3,11 @@ package modules
 import (
 	"fmt"
 	"regexp"
-	"strconv"
+	"time"
 
 	"github.com/frammiie/hambot/db"
+	"github.com/frammiie/hambot/db/model"
+	"gorm.io/gorm"
 )
 
 var QuoteModule = CommandModule{
@@ -16,7 +18,7 @@ var QuoteModule = CommandModule{
 				"number",
 			},
 			Required: 1,
-			Handle:   quote,
+			Handle:   findQuote,
 			Commands: []Command{
 				{
 					Regex: *regexp.MustCompile("add$"),
@@ -42,50 +44,24 @@ var QuoteModule = CommandModule{
 					Arguments: []string{
 						"query",
 					},
-					Required: 1,
-					Handle:   searchQuote,
+					Handle: searchQuote,
 				},
 			},
 		},
 	},
 }
 
-func quote(params *HandlerParams, args ...string) {
-	_, err := strconv.Atoi(args[0])
-	if err != nil {
-		searchQuote(params, args...)
-		return
+func queryQuote(params *HandlerParams, number *string) *gorm.DB {
+	query := db.Instance.
+		Where("channel = ?", params.message.Channel)
+	if number != nil {
+		query = query.Where("number = ?", number)
 	}
 
-	findQuote(
-		params,
-		`SELECT
-			number, content, author, submitter, added
-		FROM quote
-		WHERE
-			channel = $1 AND
-			number = $2`,
-		params.message.Channel, args[0],
-	)
+	return query.Limit(1)
 }
 
-func findQuote(params *HandlerParams, statement string, args ...interface{}) {
-	quote := db.Quote{}
-	err := db.Database.QueryRow(
-		statement, args...,
-	).Scan(
-		&quote.Number, &quote.Content, &quote.Author,
-		&quote.Submitter, &quote.Added,
-	)
-
-	if err != nil {
-		params.module.Respond(
-			params.message,
-			fmt.Sprintf("Quote not found! 👀"),
-		)
-		return
-	}
-
+func respondQuote(params *HandlerParams, quote *model.Quote) {
 	params.module.Respond(
 		params.message,
 		fmt.Sprintf(
@@ -96,41 +72,32 @@ func findQuote(params *HandlerParams, statement string, args ...interface{}) {
 	)
 }
 
-func addQuote(params *HandlerParams, args ...string) {
-	var next int
-	err := db.Database.QueryRow(`
-			SELECT  number + 1 as number
-			FROM    quote q1
-			WHERE
-				channel = $1 AND
-				NOT EXISTS
-				(
-					SELECT  NULL
-					FROM    quote q2
-					WHERE
-						channel = $1 AND
-						q2.number = q1.number + 1
-				)
-			ORDER BY
-					number
-			LIMIT 1;
-		`,
-		params.message.Channel).
-		Scan(&next)
+func findQuote(params *HandlerParams, args ...string) {
+	quote := &model.Quote{}
+	result := queryQuote(params, &args[0]).Find(&quote)
 
-	if err != nil {
-		next = 1
+	if result.RowsAffected == 0 {
+		params.module.Respond(
+			params.message,
+			fmt.Sprintf("Quote not found! 👀"),
+		)
+		return
 	}
 
-	_, err = db.Database.Exec(`
-		INSERT INTO quote (
-			number, content, author, submitter, channel, added
-		) VALUES (
-			$1, $2, $3, $4, $5, CURRENT_TIMESTAMP
-		)`,
-		next, args[0], args[1], params.message.User.DisplayName, params.message.Channel)
+	respondQuote(params, quote)
+}
 
-	if err != nil {
+func addQuote(params *HandlerParams, args ...string) {
+	var last int
+	result := db.Instance.
+		Select("number").
+		Table("quote").
+		Where("channel = ?", params.message.Channel).
+		Order("number DESC").
+		Limit(1).
+		Scan(&last)
+
+	handleErr := func(err error) {
 		params.module.Respond(
 			params.message,
 			fmt.Sprintf("Failed to add quote :("),
@@ -138,20 +105,36 @@ func addQuote(params *HandlerParams, args ...string) {
 		return
 	}
 
+	if result.Error != nil {
+		handleErr(result.Error)
+		return
+	}
+
+	new := &model.Quote{
+		Number:    last + 1,
+		Content:   args[0],
+		Author:    args[1],
+		Submitter: params.message.User.DisplayName,
+		Channel:   params.message.Channel,
+		Added:     time.Now(),
+	}
+	result = db.Instance.Create(new)
+
+	if result.Error != nil {
+		handleErr(result.Error)
+		return
+	}
+
 	params.module.Respond(
-		params.message, fmt.Sprintf("Added quote %d successfully 📝", next),
+		params.message, fmt.Sprintf(
+			"Added quote %d successfully 📝",
+			new.Number,
+		),
 	)
 }
 
 func deleteQuote(params *HandlerParams, args ...string) {
-	db.Database.Exec(`
-		DELETE FROM quote
-		WHERE
-			channel = $1 AND
-			number = $2`,
-		params.message.Channel,
-		args[0],
-	)
+	queryQuote(params, &args[0]).Delete(&model.Quote{})
 
 	params.module.Respond(
 		params.message,
@@ -160,15 +143,19 @@ func deleteQuote(params *HandlerParams, args ...string) {
 }
 
 func searchQuote(params *HandlerParams, args ...string) {
-	findQuote(
-		params,
-		`SELECT
-			number, content, author, submitter, added
-		FROM quote
-		WHERE
-			channel = $1 AND
-			content LIKE $2`,
-		params.message.Channel,
-		"%"+args[0]+"%",
-	)
+	quote := &model.Quote{}
+	query := ConcatArgs(args...)
+	result := queryQuote(params, nil).
+		Where("content LIKE ?", "%"+query+"%").
+		Find(&quote)
+
+	if result.RowsAffected == 0 {
+		params.module.Respond(
+			params.message,
+			fmt.Sprintf("Quote with query not found! 👀"),
+		)
+		return
+	}
+
+	respondQuote(params, quote)
 }

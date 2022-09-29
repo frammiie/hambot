@@ -3,8 +3,13 @@ module github.com/frammiie/hambot
 go 1.17
 
 require (
-	github.com/gempir/go-twitch-irc/v2 v2.8.2-reply
-	github.com/mattn/go-sqlite3 v1.14.9
+	github.com/gempir/go-twitch-irc/v3 v3.2.0
+	gorm.io/driver/sqlite v1.3.6
+	gorm.io/gorm v1.23.10
 )
 
-replace github.com/gempir/go-twitch-irc/v2 v2.8.2-reply => github.com/frammiie/go-twitch-irc/v2 v2.8.2-reply
+require (
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.15 // indirect
+)

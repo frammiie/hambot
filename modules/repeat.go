@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/frammiie/hambot/db"
+	"gorm.io/gorm"
 )
 
 var minLength, _ = strconv.Atoi(os.Getenv("REPEAT_MIN_LENGTH"))
@@ -21,56 +22,46 @@ var RepeatModule = CommandModule{
 	Commands: []Command{
 		{
 			Regex: *regexp.MustCompile("scs$"),
-			Arguments: []string{
-				"min length",
-			},
-			Handle: func(
-				params *HandlerParams,
-				args ...string) {
-				min := minLength
-				if len(args) > 1 {
-					parsed, _ := strconv.Atoi(args[1])
-					if parsed <= maxHeight {
-						min = parsed
-					}
-				}
+			Handle: func(params *HandlerParams, args ...string) {
+				query := db.Instance.
+					Select("content").
+					Table("message").
+					Where("channel", params.message.Channel)
 
-				query := strings.Builder{}
-				query.WriteString(`
-					SELECT content FROM message
-					WHERE
-						channel = $1 AND
-						LENGTH(content) >= $2
-				`)
-
-				if excludedUsernames[0] != "" {
-					query.WriteString("AND LOWER(username) NOT IN (")
-					for i, username := range excludedUsernames {
-						if i != 0 {
-							query.WriteString(", ")
-						}
-						query.WriteString("'" + username + "'")
-					}
-					query.WriteString(")")
-				}
-
-				if excludedContent[0] != "" {
-					for _, excluded := range excludedContent {
-						query.WriteString(
-							" AND LOWER(content) NOT LIKE " +
-								"('%" + excluded + "%')",
-						)
-					}
-				}
-
-				query.WriteString(" ORDER BY RANDOM() LIMIT 1")
+				includeConditions(params, query)
 
 				var message string
-				err := db.Database.QueryRow(
-					query.String(), params.message.Channel, min,
-				).Scan(&message)
+				query.Find(&message)
 
-				if err != nil {
+				params.module.Client.Say(
+					params.message.Channel,
+					message,
+				)
+			},
+		},
+		{
+			Regex: *regexp.MustCompile("sc$"),
+			Arguments: []string{
+				"query",
+			},
+			Required: 1,
+			Handle: func(params *HandlerParams, args ...string) {
+				searchQuery := strings.ToLower(ConcatArgs(args...))
+
+				var message string
+				query := db.Instance.
+					Select("content").
+					Table("message_fts").
+					Where("content MATCH ?", searchQuery)
+
+				includeConditions(params, query)
+
+				result := query.Scan(&message)
+
+				if result.RowsAffected == 0 {
+					params.module.Respond(
+						params.message, "No messages found 🔎",
+					)
 					return
 				}
 
@@ -78,4 +69,24 @@ var RepeatModule = CommandModule{
 			},
 		},
 	},
+}
+
+func includeConditions(params *HandlerParams, query *gorm.DB) {
+	query.
+		Where("channel", params.message.Channel).
+		Where("LENGTH(content) >= ?", minLength).
+		Where("content NOT LIKE ?", os.Getenv("PREFIX")+"%").
+		Order("RANDOM()").
+		Limit(1)
+
+	if len(excludedUsernames[0]) > 0 {
+		query.Where("LOWER(username) NOT IN ?", excludedUsernames)
+	}
+	if len(excludedContent[0]) > 0 {
+		for _, excluded := range excludedContent {
+			query.Where(
+				"LOWER(content) NOT LIKE ?", "%"+excluded+"%",
+			)
+		}
+	}
 }

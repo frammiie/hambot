@@ -4,48 +4,35 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gempir/go-twitch-irc/v2"
+	"github.com/gempir/go-twitch-irc/v3"
 )
 
 type EchoModule struct {
 	Module
 }
 
-var echoCount, _ = strconv.Atoi(os.Getenv("ECHO_COUNT"))
-var echoLength, _ = strconv.Atoi(os.Getenv("ECHO_LENGTH"))
-var echoDecay, _ = strconv.Atoi(os.Getenv("ECHO_DECAY"))
-
-var messages = make([]string, echoLength)
-var cursor = 0
-var mutex = sync.Mutex{}
-
-func addEchoMessage(message string) {
-	mutex.Lock()
-	if cursor++; cursor > echoLength-1 {
-		cursor = 0
-	}
-	messages[cursor] = message
-
-	defer mutex.Unlock()
+type EchoMessage struct {
+	Message string
+	Time    time.Time
 }
 
-func (m *EchoModule) Hook(client *twitch.Client) {
-	m.Module.Hook(client)
+var echoCount, _ = strconv.Atoi(os.Getenv("ECHO_COUNT"))
+var echoBufferSize, _ = strconv.Atoi(os.Getenv("ECHO_BUFFER_SIZE"))
+var echoExpiration, _ = strconv.ParseFloat(os.Getenv("ECHO_EXPIRE_SECS"), 64)
 
-	// Makes sure the oldest messages in memory decay
-	ticker := time.NewTicker(time.Duration(echoDecay) * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				addEchoMessage("")
-				break
-			}
-		}
-	}()
+var messages = make([]*EchoMessage, echoBufferSize)
+var cursor = 0
+
+func addEchoMessage(message string) {
+	if cursor++; cursor > echoBufferSize-1 {
+		cursor = 0
+	}
+	messages[cursor] = &EchoMessage{
+		Message: message,
+		Time:    time.Now(),
+	}
 }
 
 func (m *EchoModule) OnMessage(message *twitch.PrivateMessage) {
@@ -55,17 +42,19 @@ func (m *EchoModule) OnMessage(message *twitch.PrivateMessage) {
 
 	addEchoMessage(message.Message)
 
-	if countEqual(message.Message) >= echoCount {
+	if countEqual(messages[cursor]) >= echoCount {
 		m.Client.Say(message.Channel, message.Message)
 		// Clear
-		messages = make([]string, echoLength)
+		messages = make([]*EchoMessage, echoBufferSize)
 	}
 }
 
-func countEqual(message string) int {
+func countEqual(message *EchoMessage) int {
 	c := 0
 	for _, previous := range messages {
-		if message == previous {
+		if previous != nil &&
+			message.Message == previous.Message &&
+			message.Time.Sub(previous.Time).Seconds() < echoExpiration {
 			c++
 		}
 	}

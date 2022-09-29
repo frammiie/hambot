@@ -1,18 +1,23 @@
 package db
 
 import (
-	"database/sql"
 	"log"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
-var Database *sql.DB
+var Instance *gorm.DB
 
 func Init() {
 	var err error
-	Database, err = sql.Open("sqlite3", os.Getenv("DB"))
+	Instance, err = gorm.Open(sqlite.Open(os.Getenv("DB")), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

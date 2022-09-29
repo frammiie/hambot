@@ -1,7 +1,7 @@
 package modules
 
 import (
-	"github.com/gempir/go-twitch-irc/v2"
+	"github.com/gempir/go-twitch-irc/v3"
 )
 
 type IModule interface {
@@ -18,7 +18,7 @@ func (m *Module) Hook(client *twitch.Client) {
 }
 
 func (h *Module) Respond(original *twitch.PrivateMessage, message string) {
-	h.Client.Reply(original.Channel, message, original.ID)
+	h.Client.Reply(original.Channel, original.ID, message)
 }
 
 var Instances = []IModule{

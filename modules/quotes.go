@@ -146,7 +146,8 @@ func searchQuote(params *HandlerParams, args ...string) {
 	quote := &model.Quote{}
 	query := ConcatArgs(args...)
 	result := queryQuote(params, nil).
-		Where("content LIKE ?", "%"+query+"%").
+		Table("quote_fts").
+		Where("content MATCH ?", query).
 		Find(&quote)
 
 	if result.RowsAffected == 0 {

@@ -3,14 +3,16 @@ package modules
 import (
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gempir/go-twitch-irc/v3"
 )
 
 type CommandModule struct {
 	Module
-	Commands []Command
+	Commands []*Command
 }
 
 type HandlerParams struct {
@@ -27,13 +29,20 @@ type Command struct {
 	Arguments []string
 	Required  int
 	Level     int
-	Commands  []Command
+	Cooldown  float64
+	LastUsed  time.Time
+	Commands  []*Command
 }
 
 const (
 	UserLevel int = iota
 	ModLevel
 	BroadcasterLevel
+)
+
+var authorized = strings.Split(os.Getenv("AUTHORIZED"), " ")
+var defaultCooldown, _ = strconv.ParseFloat(
+	os.Getenv("DEFAULT_COOLDOWN_SECS"), 64,
 )
 
 func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
@@ -52,11 +61,18 @@ func (h *CommandModule) OnMessage(message *twitch.PrivateMessage) {
 		return
 	}
 
-	// Check access level
-	if determineAccessLevel(&message.User) < command.Level {
+	accessLevel := accessLevel(&message.User)
+
+	if activeCooldown(command, accessLevel) {
+		return
+	}
+
+	if accessLevel < command.Level {
 		h.Respond(message, "🤡")
 		return
 	}
+
+	command.LastUsed = time.Now()
 
 	// Check validity arguments
 	if len(parts)-(depth+1) < command.Required {
@@ -89,7 +105,7 @@ func collectParts(message *twitch.PrivateMessage) []string {
 	return parts
 }
 
-func matchCommand(query []string, depth int, commands *[]Command) (*Command, int) {
+func matchCommand(query []string, depth int, commands *[]*Command) (*Command, int) {
 	for _, command := range *commands {
 		if !command.Regex.MatchString(query[depth]) {
 			continue
@@ -103,7 +119,7 @@ func matchCommand(query []string, depth int, commands *[]Command) (*Command, int
 		if sub != nil && sub.Handle != nil {
 			return sub, sDepth
 		} else if command.Handle != nil {
-			return &command, depth
+			return command, depth
 		}
 	}
 
@@ -123,9 +139,7 @@ func generateUsage(name string, command *Command) string {
 	return usage.String()
 }
 
-var authorized = strings.Split(os.Getenv("AUTHORIZED"), " ")
-
-func determineAccessLevel(user *twitch.User) int {
+func accessLevel(user *twitch.User) int {
 	for _, displayName := range authorized {
 		if user.DisplayName == displayName {
 			return BroadcasterLevel
@@ -140,4 +154,17 @@ func determineAccessLevel(user *twitch.User) int {
 	default:
 		return UserLevel
 	}
+}
+
+func activeCooldown(command *Command, accessLevel int) bool {
+	if accessLevel < ModLevel && !command.LastUsed.IsZero() {
+		cooldown := command.Cooldown
+		if cooldown == 0 {
+			cooldown = defaultCooldown
+		}
+		if time.Since(command.LastUsed).Seconds() < cooldown {
+			return true
+		}
+	}
+	return false
 }

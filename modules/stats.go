@@ -11,7 +11,7 @@ import (
 var started = time.Now()
 
 var StatsModule = CommandModule{
-	Commands: []Command{
+	Commands: []*Command{
 		{
 			Regex: *regexp.MustCompile("stats$"),
 			Handle: func(params *HandlerParams, args ...string) {

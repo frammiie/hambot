@@ -11,7 +11,7 @@ import (
 )
 
 var QuoteModule = CommandModule{
-	Commands: []Command{
+	Commands: []*Command{
 		{
 			Regex: *regexp.MustCompile("q(uote)?(s)?$"),
 			Arguments: []string{
@@ -19,7 +19,7 @@ var QuoteModule = CommandModule{
 			},
 			Required: 1,
 			Handle:   findQuote,
-			Commands: []Command{
+			Commands: []*Command{
 				{
 					Regex: *regexp.MustCompile("add$"),
 					Arguments: []string{
@@ -145,10 +145,13 @@ func deleteQuote(params *HandlerParams, args ...string) {
 func searchQuote(params *HandlerParams, args ...string) {
 	quote := &model.Quote{}
 	query := ConcatArgs(args...)
-	result := queryQuote(params, nil).
+	result := db.Instance.
 		Table("quote_fts").
-		Where("content MATCH ?", query).
-		Find(&quote)
+		Select("quote.*").
+		Joins("INNER JOIN quote on quote.id = quote_fts.id").
+		Where("quote.channel = ?", params.message.Channel).
+		Where("quote_fts.content MATCH ?", query).
+		Scan(&quote)
 
 	if result.RowsAffected == 0 {
 		params.module.Respond(

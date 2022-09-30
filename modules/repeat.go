@@ -19,7 +19,7 @@ var excludedUsernames = strings.Split(
 )
 
 var RepeatModule = CommandModule{
-	Commands: []Command{
+	Commands: []*Command{
 		{
 			Regex: *regexp.MustCompile("scs$"),
 			Handle: func(params *HandlerParams, args ...string) {

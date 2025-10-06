@@ -1,0 +1,7 @@
+services:
+  hambot:
+    build: .
+    env_file: .env
+    restart: on-failure:3
+    volumes:
+      - ./data:/hambot/data

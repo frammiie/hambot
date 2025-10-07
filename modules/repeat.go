@@ -1,13 +1,14 @@
 package modules
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/frammiie/hambot/db"
-	"gorm.io/gorm"
+	"github.com/frammiie/hambot/db/model"
 )
 
 var minLength, _ = strconv.Atoi(os.Getenv("REPEAT_MIN_LENGTH"))
@@ -17,26 +18,14 @@ var excludedContent = strings.Split(
 var excludedUsernames = strings.Split(
 	strings.ToLower(os.Getenv("REPEAT_EXCLUDED_USERNAMES")), ";",
 )
+var lastMessage *model.Message = nil
 
 var RepeatModule = CommandModule{
 	Commands: []*Command{
 		{
 			Regex: *regexp.MustCompile("scs$"),
 			Handle: func(params *HandlerParams, args ...string) {
-				query := db.Instance.
-					Select("content").
-					Table("message").
-					Where("channel", params.message.Channel)
-
-				includeConditions(params, query)
-
-				var message string
-				query.Find(&message)
-
-				params.module.Client.Say(
-					params.message.Channel,
-					message,
-				)
+				handleQuery(params, nil)
 			},
 		},
 		{
@@ -48,40 +37,50 @@ var RepeatModule = CommandModule{
 			Handle: func(params *HandlerParams, args ...string) {
 				searchQuery := strings.ToLower(ConcatArgs(args...))
 
-				var message string
-				query := db.Instance.
-					Select("content").
-					Table("message_fts").
-					Where("content MATCH ?", searchQuery)
-
-				includeConditions(params, query)
-
-				result := query.Scan(&message)
-
-				if result.RowsAffected == 0 {
+				handleQuery(params, &searchQuery)
+			},
+		},
+		{
+			Regex: *regexp.MustCompile("who$"),
+			Handle: func(params *HandlerParams, args ...string) {
+				if lastMessage == nil {
 					params.module.Respond(
-						params.message, "No messages found 🔎",
+						params.message, "No message requested yet ❓",
 					)
 					return
 				}
-
-				params.module.Client.Say(params.message.Channel, message)
+				
+				params.module.Respond(
+					params.message,
+					fmt.Sprintf(
+						"💬 Last message was by %s, ⏳ %v",
+						lastMessage.Username,
+						lastMessage.Created.Time().
+							Format("2006-01-02 15:04:05 MST"),
+					),
+				)
 			},
 		},
 	},
 }
 
-func includeConditions(params *HandlerParams, query *gorm.DB) {
-	query.
+func handleQuery(params *HandlerParams, searchQuery *string) {
+	query := db.Instance.
+		Table("message_fts").
 		Where("channel", params.message.Channel).
 		Where("LENGTH(content) >= ?", minLength).
 		Where("content NOT LIKE ?", os.Getenv("PREFIX")+"%").
 		Order("RANDOM()").
 		Limit(1)
 
+	if searchQuery != nil {
+		query.Where("content MATCH ?", searchQuery)
+	}
+
 	if len(excludedUsernames[0]) > 0 {
 		query.Where("LOWER(username) NOT IN ?", excludedUsernames)
 	}
+
 	if len(excludedContent[0]) > 0 {
 		for _, excluded := range excludedContent {
 			query.Where(
@@ -89,4 +88,22 @@ func includeConditions(params *HandlerParams, query *gorm.DB) {
 			)
 		}
 	}
+
+	var message model.Message
+	result := query.First(&message)
+
+	if result.RowsAffected == 0 {
+		params.module.Respond(
+			params.message, "No messages found 🔎",
+		)
+		return
+	}
+
+	lastMessage = &message
+
+	params.module.Client.Say(
+		params.message.Channel,
+		message.Content,
+	)
 }
+

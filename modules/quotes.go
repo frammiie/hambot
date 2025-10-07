@@ -7,6 +7,7 @@ import (
 
 	"github.com/frammiie/hambot/db"
 	"github.com/frammiie/hambot/db/model"
+	"github.com/frammiie/hambot/db/types"
 	"gorm.io/gorm"
 )
 
@@ -67,7 +68,7 @@ func respondQuote(params *HandlerParams, quote *model.Quote) {
 		fmt.Sprintf(
 			"✒️ #%d - %s - %s (👤 @%s ⏰ %s)",
 			quote.Number, quote.Content, quote.Author,
-			quote.Submitter, quote.Added.Format("2006-01-02"),
+			quote.Submitter, quote.Added.Time().Format("2006-01-02"),
 		),
 	)
 }
@@ -116,7 +117,7 @@ func addQuote(params *HandlerParams, args ...string) {
 		Author:    args[1],
 		Submitter: params.message.User.DisplayName,
 		Channel:   params.message.Channel,
-		Added:     time.Now(),
+		Added:     types.Timestamp(time.Now()),
 	}
 	result = db.Instance.Create(new)
 

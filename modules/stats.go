@@ -3,8 +3,9 @@ package modules
 import (
 	"regexp"
 	"time"
+
 	"golang.org/x/text/language"
-    "golang.org/x/text/message"
+	"golang.org/x/text/message"
 
 	"github.com/frammiie/hambot/db"
 )

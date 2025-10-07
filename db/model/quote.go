@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"github.com/frammiie/hambot/db/types"
+)
 
 type Quote struct {
 	Id        int
@@ -9,7 +11,7 @@ type Quote struct {
 	Author    string
 	Submitter string
 	Channel   string
-	Added     time.Time
+	Added     types.Timestamp
 }
 
 type Message struct {
@@ -17,5 +19,5 @@ type Message struct {
 	Content  string
 	Username string
 	Channel  string
-	Created  time.Time
+	Created  types.Timestamp
 }

@@ -3,6 +3,7 @@ package modules
 import (
 	"github.com/frammiie/hambot/db"
 	"github.com/frammiie/hambot/db/model"
+	"github.com/frammiie/hambot/db/types"
 
 	"github.com/gempir/go-twitch-irc/v4"
 )
@@ -17,6 +18,6 @@ func (m *LogModule) OnMessage(message *twitch.PrivateMessage) {
 		Content:  message.Message,
 		Username: message.User.DisplayName,
 		Channel:  message.Channel,
-		Created:  message.Time,
+		Created:  types.Timestamp(message.Time),
 	})
 }

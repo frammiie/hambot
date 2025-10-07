@@ -8,6 +8,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build
+RUN go build --tags fts5
 
 CMD ["./hambot"]

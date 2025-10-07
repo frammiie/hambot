@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/frammiie/hambot/db"
 	"github.com/frammiie/hambot/db/model"
@@ -49,13 +50,17 @@ var RepeatModule = CommandModule{
 					)
 					return
 				}
+
+				var location, _ = time.LoadLocation("Europe/Berlin")
 				
 				params.module.Respond(
 					params.message,
 					fmt.Sprintf(
 						"💬 Last message was by %s, ⏳ %v",
 						lastMessage.Username,
-						lastMessage.Created.Time().
+						lastMessage.Created.
+							Time().
+							In(location).
 							Format("2006-01-02 15:04:05 MST"),
 					),
 				)

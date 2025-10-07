@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gempir/go-twitch-irc/v3"
+	"github.com/gempir/go-twitch-irc/v4"
 
 	"github.com/frammiie/hambot/db"
 	"github.com/frammiie/hambot/modules"

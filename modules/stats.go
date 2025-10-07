@@ -1,9 +1,10 @@
 package modules
 
 import (
-	"fmt"
 	"regexp"
 	"time"
+	"golang.org/x/text/language"
+    "golang.org/x/text/message"
 
 	"github.com/frammiie/hambot/db"
 )
@@ -15,15 +16,17 @@ var StatsModule = CommandModule{
 		{
 			Regex: *regexp.MustCompile("stats$"),
 			Handle: func(params *HandlerParams, args ...string) {
-				uptime := time.Since(started).Round(time.Minute)
+				uptime := time.Since(started).Round(time.Second)
 
 				var count int64
 				db.Instance.Table("message").Select("COUNT(*)").Scan(&count)
 
+				printer := message.NewPrinter(language.English)
+
 				params.module.Respond(
 					params.message,
-					fmt.Sprintf("Current statistics for hambot🍖"+
-						"%d 💬 messages | "+
+					printer.Sprintf("Current statistics for hambot 🍖" +
+						"%d 💬 messages | " +
 						"%s ⏳ uptime", count, uptime,
 					),
 				)

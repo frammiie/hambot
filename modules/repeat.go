@@ -19,14 +19,19 @@ var excludedContent = strings.Split(
 var excludedUsernames = strings.Split(
 	strings.ToLower(os.Getenv("REPEAT_EXCLUDED_USERNAMES")), ";",
 )
-var messageHistory = make(map[string]*model.Message)
 
 var RepeatModule = CommandModule{
 	Commands: []*Command{
 		{
 			Regex: *regexp.MustCompile("scs$"),
 			Handle: func(params *HandlerParams, args ...string) {
-				handleQuery(params, nil)
+				handleQuery(params, nil, false)
+			},
+		},
+		{
+			Regex: *regexp.MustCompile("scse$"),
+			Handle: func(params *HandlerParams, args ...string) {
+				handleQuery(params, nil, true)
 			},
 		},
 		{
@@ -38,40 +43,25 @@ var RepeatModule = CommandModule{
 			Handle: func(params *HandlerParams, args ...string) {
 				searchQuery := strings.ToLower(ConcatArgs(args...))
 
-				handleQuery(params, &searchQuery)
+				handleQuery(params, &searchQuery, false)
 			},
 		},
 		{
-			Regex: *regexp.MustCompile("who$"),
+			Regex: *regexp.MustCompile("sce$"),
+			Arguments: []string{
+				"query",
+			},
+			Required: 1,
 			Handle: func(params *HandlerParams, args ...string) {
-				lastMessage, present := messageHistory[params.message.Channel];
+				searchQuery := strings.ToLower(ConcatArgs(args...))
 
-				if !present {
-					params.module.Respond(
-						params.message, "No message requested yet ❓",
-					)
-					return
-				}
-
-				var location, _ = time.LoadLocation("Europe/Berlin")
-				
-				params.module.Respond(
-					params.message,
-					fmt.Sprintf(
-						"💬 Last message was by %s, ⏳ %v",
-						lastMessage.Username,
-						lastMessage.Created.
-							Time().
-							In(location).
-							Format("2006-01-02 15:04:05 MST"),
-					),
-				)
+				handleQuery(params, &searchQuery, true)
 			},
 		},
 	},
 }
 
-func handleQuery(params *HandlerParams, searchQuery *string) {
+func handleQuery(params *HandlerParams, searchQuery *string, extended bool) {
 	query := db.Instance.
 		Table("message_fts").
 		Where("channel", params.message.Channel).
@@ -106,11 +96,25 @@ func handleQuery(params *HandlerParams, searchQuery *string) {
 		return
 	}
 
-	messageHistory[message.Channel] = &message;
-
-	params.module.Client.Say(
-		params.message.Channel,
-		message.Content,
-	)
+	if !extended {
+		params.module.Respond(
+			params.message,
+			message.Content,
+		)
+	} else {
+		var location, _ = time.LoadLocation("Europe/Berlin")
+		
+		params.module.Respond(
+			params.message,
+			fmt.Sprintf(
+				"%s | @%s, %s",
+				message.Content,
+				message.Username,
+				message.Created.
+					Time().
+					In(location).
+					Format("2006-01-02 15:04:05 MST"),
+			),
+		)
+	}
 }
-

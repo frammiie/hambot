@@ -19,7 +19,7 @@ var excludedContent = strings.Split(
 var excludedUsernames = strings.Split(
 	strings.ToLower(os.Getenv("REPEAT_EXCLUDED_USERNAMES")), ";",
 )
-var lastMessage *model.Message = nil
+var messageHistory = make(map[string]*model.Message)
 
 var RepeatModule = CommandModule{
 	Commands: []*Command{
@@ -44,7 +44,9 @@ var RepeatModule = CommandModule{
 		{
 			Regex: *regexp.MustCompile("who$"),
 			Handle: func(params *HandlerParams, args ...string) {
-				if lastMessage == nil {
+				lastMessage, present := messageHistory[params.message.Channel];
+
+				if !present {
 					params.module.Respond(
 						params.message, "No message requested yet ❓",
 					)
@@ -104,7 +106,7 @@ func handleQuery(params *HandlerParams, searchQuery *string) {
 		return
 	}
 
-	lastMessage = &message
+	messageHistory[message.Channel] = &message;
 
 	params.module.Client.Say(
 		params.message.Channel,

@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const layout = "2006-01-02 15:04:05.999999999-07:00"
+
 type Timestamp time.Time
 
 func (st *Timestamp) Scan(value any) error {
@@ -14,19 +16,21 @@ func (st *Timestamp) Scan(value any) error {
 		return nil
 	}
 
-	str, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("expected string, got %T", value)
+	switch v := value.(type) {
+	case time.Time:
+		// go-sqlite3 already parses columns declared as TIMESTAMP/DATETIME/DATE.
+		*st = Timestamp(v)
+		return nil
+	case string:
+		t, err := time.Parse(layout, v)
+		if err != nil {
+			return fmt.Errorf("failed to parse timestamp: %s", v)
+		}
+		*st = Timestamp(t)
+		return nil
+	default:
+		return fmt.Errorf("expected string or time.Time, got %T", value)
 	}
-
-	t, err := time.Parse("2006-01-02 15:04:05.999999999-07:00", str)
-	if err != nil {
-		return fmt.Errorf("failed to parse timestamp: %s", str)
-	}
-
-	*st = Timestamp(t)
-
-	return nil
 }
 
 func (st Timestamp) Value() (driver.Value, error) {
@@ -35,8 +39,8 @@ func (st Timestamp) Value() (driver.Value, error) {
 	if t.IsZero() {
 		return nil, nil
 	}
-	
-	return t.Format("2006-01-02 15:04:05.999999999-07:00"), nil
+
+	return t.Format(layout), nil
 }
 
 func (st Timestamp) Time() time.Time {
